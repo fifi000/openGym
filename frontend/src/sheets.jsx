@@ -32,7 +32,7 @@ import { sameMuscleFirst, swapMuscleOf } from './lib/similar-exercises.js'
 import { exerciseMuscleSnapshot, loadOfWorkouts, MUSCLES, MUSCLE_NAME, muscleWeightsOf, normalizeMuscleGroups, hasExplicitMuscleMetadata, inMuscleOrder } from './lib/muscles.js'
 import { parseImport, mergeImport } from './lib/import-csv.js'
 import { importHevyData, HevyApiError, HEVY_DEV_SETTINGS, mergeHevyRoutines } from './lib/import-hevy.js'
-import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML } from './lib/plan-share.js'
+import { buildPlanBundle, parsePlan, mergePlan, printPlan, planPrintHTML, encodePlanLink, decodePlanLink } from './lib/plan-share.js'
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP, formulaOf, FORMULA_NAMES } from './lib/onerm.js'
 import { exerciseHistory } from './lib/exercise-history.js'
 import { isBellEx, dbLoadOf, dbLoadFor, withDbLoad, withMeaning, historyAs, entryDbLoad, currentDbLoad, isOneArm, ownedWeightsFor, dumbbellsOf, ownsDumbbells, withDumbbells, presetWeights, cleanWeights } from './lib/dumbbells.js'
@@ -2140,6 +2140,20 @@ export async function exportPlanFile() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href)
   toast(t('Plan file saved. Send it to a friend!'))
 }
+export async function sharePlanLink() {
+  const st = S(), owner = useStore.getState().user?.name || ''
+  try {
+    const link = encodePlanLink(buildPlanBundle(st, owner ? t('{0}’s plan', owner) : ''))
+    await copyText(link)
+    toast(t('Plan link copied.'))
+  } catch (error) {
+    toast(error?.code === 'too-large' ? t('This plan is too large for a link. Export the plan file instead.') : t('Couldn’t create a plan link.'))
+  }
+}
+export function offerPlanLink(encoded) {
+  try { planImportSheet(decodePlanLink(encoded, S().unit || 'kg')) }
+  catch (error) { toast(error?.code === 'too-large' ? t('This plan link is too large.') : t('This plan link is invalid.')) }
+}
 // Web: the browser's print dialog (→ Save as PDF). Mobile: the OS print flow via the native
 // Print plugin — Android WebView has no window.print(). Same printable HTML both ways.
 export function printWholePlan() {
@@ -2175,6 +2189,9 @@ function PlanTools({ close }) {
     <div className="muted small" style={{ marginBottom: 16 }}>{t('Send your routines to a friend, or put your week on paper.')}</div>
     <Button variant="primary" icon="share" onClick={exportFile} disabled={!hasRoutines}>{t('Export plan file')}</Button>
     <div className="dim small" style={{ margin: '7px 2px 0', lineHeight: 1.4 }}>{t('A small file a friend can import into their own openGym. Routines only, none of your workouts or weigh-ins.')}</div>
+    <div style={{ height: 12 }} />
+    <Button variant="tinted" icon="link" onClick={async () => { await sharePlanLink(); close() }} disabled={!hasRoutines}>{t('Copy plan link')}</Button>
+    <div className="dim small" style={{ margin: '7px 2px 0', lineHeight: 1.4 }}>{t('The plan is carried in the link itself. No workout history or weigh-ins are included.')}</div>
     <div style={{ height: 12 }} />
     <Button variant="tinted" icon="note" onClick={() => { close(); printWholePlan() }} disabled={!hasRoutines}>{t('Print / Save as PDF')}</Button>
     <div className="dim small" style={{ margin: '7px 2px 0', lineHeight: 1.4 }}>{t('A clean printout, one page per plan. No exercise ever gets split across pages.')}</div>

@@ -17,7 +17,7 @@ import { installViewportGuard } from './lib/viewport-guard.js'
 import { installChipDrag } from './lib/hchips.js'
 import { syncPushSubscription } from './lib/push.js'
 import { MOBILE } from './lib/mobile.js'
-import { exitWorkoutEdit, startFlow } from './sheets.jsx'
+import { exitWorkoutEdit, startFlow, offerPlanLink } from './sheets.jsx'
 import Icon from './components/Icon.jsx'
 import TabBar from './components/TabBar.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -144,6 +144,14 @@ function Shell() {
     linkOffered.current = true
     openDeviceLinkRedeem()
   }, [ready, linkCode])
+  const planLinkOffered = useRef(false)
+  useEffect(() => {
+    const encoded = new URLSearchParams(loc.search).get('plan')
+    if (!ready || !encoded || planLinkOffered.current) return
+    planLinkOffered.current = true
+    offerPlanLink(encoded)
+    navigate(loc.pathname, { replace: true })
+  }, [ready, loc.pathname, loc.search, navigate])
   useEffect(() => {
     const onScroll = () => {
       // Modals pins the body while a sheet is open; scrollY is 0 then, not a position.

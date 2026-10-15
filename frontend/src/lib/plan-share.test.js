@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlanBundle, mergePlan, parsePlan } from './plan-share.js'
+import { buildPlanBundle, mergePlan, parsePlan, encodePlanLink, decodePlanLink, PLAN_LINK_MAX } from './plan-share.js'
 
 // There was no test file for plan sharing at all, which is how a whole prescription field
 // went missing without anyone noticing.
@@ -304,5 +304,20 @@ describe('parsePlan refuses a file that is not a plan in words', () => {
   it('text that is not JSON says it is not a plan file, not the parser message', () => {
     expect(() => parsePlan('hello there')).toThrow('this isn’t an openGym plan file')
     try { parsePlan('{oops') } catch (e) { expect(e.code).toBe('not-plan') }
+  })
+})
+
+describe('plan links', () => {
+  it('round-trips Unicode plan names without placing data in the HTTP path', () => {
+    const bundle = buildPlanBundle(stateWith({}), 'Filip — plan')
+    const link = encodePlanLink(bundle, { origin: 'https://gym.test', pathname: '/' })
+    expect(link.startsWith('https://gym.test/#/home?plan=')).toBe(true)
+    expect(decodePlanLink(new URL(link).hash.split('plan=')[1])).toMatchObject({ name: 'Filip — plan', routineCount: 1 })
+  })
+
+  it('rejects oversized and malformed links before import', () => {
+    expect(() => encodePlanLink({ note: 'x'.repeat(PLAN_LINK_MAX) }, { origin: 'https://gym.test', pathname: '/' })).toThrow()
+    expect(() => decodePlanLink('x'.repeat(PLAN_LINK_MAX + 1))).toThrow()
+    expect(() => decodePlanLink('not a link')).toThrow()
   })
 })

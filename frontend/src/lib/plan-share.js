@@ -26,6 +26,7 @@ const PLAN_FMT = 1
 const WEEK_DAYS = [1, 2, 3, 4, 5, 6, 0]   // every getDay() index; only the reader's own
                                           // screen puts them in an order (see weekOrder)
 const PLAN_UNITS = new Set(['kg', 'lb'])
+export const PLAN_LINK_MAX = 48_000
 
 // A plan's numbers are in the unit that wrote it. Missing unit is deliberately legacy-compatible:
 // old files were read as already being in the recipient's unit, so keep their values unchanged.
@@ -268,6 +269,31 @@ export function parsePlan(raw, destinationUnit = 'kg') {
     unit: destination,
     sourceUnit: sourceUnit || null,
     destinationUnit: destination
+  }
+}
+
+// Links keep the bundle in the URL fragment: browsers do not send it to the web server.
+export function encodePlanLink(bundle, location = window.location) {
+  const bytes = new TextEncoder().encode(JSON.stringify(bundle))
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  const encoded = btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+  if (encoded.length > PLAN_LINK_MAX) throw Object.assign(new Error('plan-link-too-large'), { code: 'too-large' })
+  return `${location.origin}${location.pathname}#/home?plan=${encoded}`
+}
+
+export function decodePlanLink(value, destinationUnit = 'kg') {
+  const encoded = String(value || '')
+  if (!encoded || encoded.length > PLAN_LINK_MAX || !/^[A-Za-z0-9_-]+$/.test(encoded)) {
+    throw Object.assign(new Error('invalid-plan-link'), { code: 'not-plan' })
+  }
+  try {
+    const binary = atob(encoded.replaceAll('-', '+').replaceAll('_', '/'))
+    const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0))
+    return parsePlan(new TextDecoder('utf-8', { fatal: true }).decode(bytes), destinationUnit)
+  } catch (error) {
+    if (error?.code === 'not-plan') throw error
+    throw Object.assign(new Error('invalid-plan-link'), { code: 'not-plan' })
   }
 }
 
