@@ -87,10 +87,17 @@ export async function prepare(uid,S,rid) {
   }
   return {routine,maxes,reason:answer.reason,mode:'ai',sources:docs.filter(d=>answer.sources.includes(d.id)).map(sourceLabel),memory:cleanMemory(answer.memory)}
 }
-export async function chat(uid,S,message) {
+export function cleanConversation(conversation) {
+  if (!Array.isArray(conversation)) return []
+  return conversation.slice(-8).filter(item =>
+    item && ['user','assistant'].includes(item.role) && typeof item.text === 'string' && item.text.trim()
+  ).map(item => ({role:item.role,text:item.text.trim().slice(0,2000)}))
+}
+export async function chat(uid,S,message,conversation=[]) {
   const docs=retrieve(message+' strength training autoregulation progression',8)
   const model=COACH_MODELS.includes(S.sbs?.model)?S.sbs.model:DEFAULT_COACH_MODEL
-  const a=await infer(uid,RULES+'\nTASK: Answer the athlete and remember useful facts or testable hypotheses. Return {reason:string,sources:[referenceId],memory:[{text,status,evidence:[workoutId]}]}. This chat answer does not apply a session prescription; the next-session preparation does that.\nATHLETE MESSAGE:\n'+JSON.stringify(message)+'\nTRAINING DATA:\n'+JSON.stringify(trainingContext(S))+'\nREFERENCE EXCERPTS (some web entries only describe a video; no video transcript is included, so do not claim its detailed content):\n'+JSON.stringify(docs),model)
+  const history=cleanConversation(conversation)
+  const a=await infer(uid,RULES+'\nTASK: Answer the athlete and remember useful facts or testable hypotheses. Return {reason:string,sources:[referenceId],memory:[{text,status,evidence:[workoutId]}]}. This chat answer does not apply a session prescription; the next-session preparation does that. Continue the conversation using the recent exchange below, while treating the newest athlete message as the current request.\nRECENT CONVERSATION:\n'+JSON.stringify(history)+'\nATHLETE MESSAGE:\n'+JSON.stringify(message)+'\nTRAINING DATA:\n'+JSON.stringify(trainingContext(S))+'\nREFERENCE EXCERPTS (some web entries only describe a video; no video transcript is included, so do not claim its detailed content):\n'+JSON.stringify(docs),model)
   if(typeof a.reason!=='string'||!Array.isArray(a.sources)||a.sources.some(id=>!docs.some(d=>d.id===id)))throw new Error('Invalid sourced response')
   return {reason:a.reason,sources:docs.filter(d=>a.sources.includes(d.id)).map(sourceLabel),memory:cleanMemory(a.memory)}
 }
@@ -161,6 +168,6 @@ export function sbsRoutes({json,readBody,readSession}) {
     'GET /api/sbs/status':async(req,res)=>{const u=guard(req,res);if(u)json(res,200,{connected:codexConnected(u.id),busy:busy.has(u.id)})},
     'GET /api/sbs/usage':async(req,res)=>{const u=guard(req,res);if(!u)return;try{json(res,200,await usageSnapshot(u.id))}catch(e){json(res,503,{error:e.message})}},
     'POST /api/sbs/prepare':task((uid,b)=>prepare(uid,b.state,b.routineId)),
-    'POST /api/sbs/chat':task((uid,b)=>{if(typeof b.message!=='string'||b.message.length>4000)throw new Error('Invalid message');return chat(uid,b.state,b.message)}),
+    'POST /api/sbs/chat':task((uid,b)=>{if(typeof b.message!=='string'||b.message.length>4000)throw new Error('Invalid message');return chat(uid,b.state,b.message,cleanConversation(b.conversation))}),
   }
 }
