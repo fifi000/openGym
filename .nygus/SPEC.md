@@ -6,6 +6,8 @@ Improve openGym's day-to-day workout logging and training review using ideas ver
 
 ## Features
 
+0. Polish the SBS Coach panel into a compact dashboard. Put the current week and connection status first, make Codex usage easy to scan, keep settings/history/memory in clear disclosure sections, and give the coach conversation a distinct primary card. Preserve existing behavior and openGym's visual language on mobile and desktop.
+
 1. Faster set entry: copy a field from a previous set or session, fill compatible remaining sets, and undo the bulk edit. Keep warm-ups, intensifier sets, and per-set progression targets intact unless the user explicitly selects them.
 2. Exercise alternatives: save options against a routine slot and choose one during a workout. Continue each selected exercise's own history and progression; never copy a load or training max across different exercises by default.
 3. Deload-aware review: record why a session or exercise is excluded from progression, show deload markers in relevant charts, and allow strength trends to omit marked deloads. Keep completed work in actual volume and attendance.
@@ -17,6 +19,9 @@ Improve openGym's day-to-day workout logging and training review using ideas ver
 9. Plan sharing link: add an opt-in link alongside existing file export and print. Encode the plan in the link itself; do not upload plans to a new third-party service. The existing import confirmation remains the point where a shared plan enters user data.
 
 ## Acceptance criteria
+
+- The SBS Coach panel presents cycle/week and connection status in a clear header, shows subscription usage as readable compact metrics, and separates coach chat from collapsible settings, decisions, and memory.
+- The panel remains readable and operable at phone and desktop widths, while every existing Coach control and behavior remains available.
 
 - A user can copy weight, reps, or effort from the prior comparable set/session and apply a value to compatible sets. A bulk edit has one-step undo and does not silently overwrite incompatible set types.
 - A routine slot can store exercise alternatives; choosing one during training logs the selected ID and uses that exercise's own prior values.
