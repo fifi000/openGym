@@ -30,3 +30,8 @@ frontend/bundle-size.json
 
 # Local planning notes
 docs/superpowers/plans/
+
+# Local training reference library and login caches
+training-knowledge/
+coach-auth/
+private/

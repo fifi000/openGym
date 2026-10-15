@@ -143,6 +143,7 @@ export function bestSetOf(entry, formula = DEFAULT_FORMULA) {
   if (isAssisted(entry?.id ? { id: entry.id } : entry)) return null
   let best = null
   metricRowsForEntry(entry, 'reps').forEach(s => {
+    if (['failed','partial','negative','cluster','myo','dropset'].includes(s.striveType)) return
     const sets = isSideSet(s)
       ? [s.sides.L, s.sides.R].filter(side => side?.done === true)
       : [s]

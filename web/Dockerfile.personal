@@ -1,0 +1,12 @@
+# Reuse the deployed release's licensed media and nginx configuration.
+FROM node:22-alpine AS build
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY api/coach/core/ /app/api/coach/core/
+COPY frontend/ ./
+ARG APP_BUILD=filip-sbs
+RUN APP_BUILD="$APP_BUILD" npm run build
+
+FROM ghcr.io/duartesantos8/opengym-web@sha256:e32cae9d2f4aad0c5e1b7888c9bfc712b2306ddfe3c65bc4cfefd4b0002e86d3
+COPY --from=build /app/frontend/dist/ /usr/share/nginx/html/

@@ -3,6 +3,7 @@
 // to identical entries, or the two paths drift apart the first time a prescription rule changes.
 // Imports both history.js and progression.js (which itself imports history.js); nothing in
 // either imports this file, so there is no cycle.
+import { sbsRoutine } from '../../../api/coach/core/sbs.js'
 import { buildSets, applyIntensifierPlan, modeOf, barFloor } from './history.js'
 import { isWarmupRow } from './workout-model.js'
 import { nextPrescription, applyPrescription, defaultIncrement, weightIncrement, plannedOf } from './progression.js'
@@ -31,6 +32,16 @@ export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {})
   // What a dumbbell weight means for this exercise today (lib/dumbbells.js): the history it
   // progresses from is read in that meaning, so a switch from "40 total" to per bell opens at
   // 20, not at 40 a hand. Only a switch between the two explicit meanings converts anything.
+  if (stored.sbs?.enabled && routine?.sbsWeeks) {
+    const planned = routine.sbsPrepared?.week === stored.sbs.week && routine.sbsPrepared?.cycle === stored.sbs.cycle ? routine : sbsRoutine(stored, routine)
+    const c = planned.ex.find(e => e.id === cfg.id) || cfg
+    const rows = c.sbsRows || []
+    if (rows.length) return {
+      target: { ...c, countDouble: !!stored.countDouble?.[cfg.id] },
+      planned: plannedOf(c), plan: { policy:'off',kind:'off' },
+      sets: rows.map(s => { const {rir,rpe,...row}=s; return {...row,done:false} }),
+    }
+  }
   const meaning = dbLoadFor(stored, cfg)
   const st = historyAs(stored, cfg.id, meaning)
   // `plan` is kept on the entry purely so the workout can explain the number it chose.
@@ -48,7 +59,7 @@ export function buildPlannedEntry(stored, cfg, routine, { noProg = false } = {})
   const built = applyPrescription(buildSets(st, cfg, { step: ramp, rid: routine?.id, useTarget: plan.kind === 'off', planReps }), plan, ramp, barFloor(st, cfg.id))
   const rows = backoffStep ? applyBackoff(built, backoffStep) : built
   const sets = applyIntensifierPlan(rows, cfg, dropGrid(st, cfg))
-  const target = { ...cfg }
+  const target = { ...cfg, ...(stored.countDouble?.[cfg.id] != null ? {countDouble:!!stored.countDouble[cfg.id]} : {}) }
   // Stamped on the session, so the meaning it was logged with stays with it (dumbbells.js).
   if (meaning !== 'as') target.dbLoad = meaning
   if (plan.weight != null) target.weight = plan.weight

@@ -5,3 +5,9 @@ data
 .env
 .git
 *.log
+
+frontend/qa*
+frontend/public/qa-state.json
+training-knowledge
+coach-auth
+private

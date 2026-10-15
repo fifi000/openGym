@@ -42,6 +42,9 @@ import { isBackoff, backoffWeights } from './lib/backoff.js'
 import { isPyramid, normalizePyramid, normalizePyramidRest, normalizePyramidWeight, pyramidFromFlat, flatFromPyramid, pyramidLabel, PYRAMID_MAX, MAX_PYRAMID_SETS, PYRAMID_PRESETS } from './lib/pyramid.js'
 import { MOBILE, shareExport, shareExportBlob, printHtml } from './lib/mobile.js'
 import { speedUnitOf, toSpeed, fromSpeed } from './lib/speed.js'
+import RepRecords from './components/RepRecords.jsx'
+import { completeSbs } from '../../api/coach/core/sbs.js'
+import { prepareSbsSession } from './lib/sbs-client.js'
 import { buildCompletedWorkout, sessionEnd } from './lib/finish-workout.js'
 import { refillAfter } from './lib/rotation.js'
 import { isWarmupRow, hasCompletedWork } from './lib/workout-model.js'
@@ -1015,7 +1018,8 @@ function ExerciseDetail({ ex, close }) {
     {/* No one-rep max on an assistance machine: the load is the help you were given, so the
         calculator would answer "your 1RM is 23 kg" about a number that gets smaller as you get
         stronger (issue #232). Cardio has none for the same kind of reason. */}
-    {!isCardio(ex) && !isAssisted(ex) && <OneRM ex={ex} />}
+    {!isCardio(ex) && !isAssisted(ex) && <><RepRecords exId={ex.id} /><OneRM ex={ex} /></>}
+    <label className="row" style={{margin:'12px 0'}}><input type="checkbox" checked={!!st.countDouble?.[ex.id]} onChange={e=>{const value=e.target.checked;update(s=>{s.countDouble={...s.countDouble,[ex.id]:value};for(const w of s.workouts){let changed=false;for(const en of w.entries||[])if(en.id===ex.id){en.target={...en.target,countDouble:value};changed=true}if(changed)w.vol=workoutVolume(w)}})}} /> Count volume ×2 (logged load stays unchanged)</label>
     {instrFor(ex).length > 0 &&<><h4 className="sec">{t('How to')}{getLang() !== 'en' && !instrTranslated(ex) && <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}> · {t('instructions in English')}</span>}</h4><ol className="steps-list">{instrFor(ex).map((s, i) => <li key={i}>{s}</li>)}</ol></>}
     {/* The catalogue is community-edited (catalogue/README.md): a wrong muscle, a clumsy step or a
         missing translation is one tap from an issue that already names the exercise. */}
@@ -1050,6 +1054,7 @@ function ExerciseHistory({ exId }) {
   ].filter(Boolean).join(' · ')
   return <>
     <h3 className={exerciseNameClass(ex)} style={{ marginBottom: 2 }}>{exerciseNameFor(ex)}</h3>
+    <RepRecords exId={exId} />
     <div className="muted small" style={{ marginBottom: 10 }}>{t('Exercise history')} · {tn('{0} session', '{0} sessions', h.total)}</div>
     {/* Only reps work with a load produces an estimate, so the toggle is absent for the rest. */}
     {h.e1rmPoints.length > 0 && h.metric === 'weight' && <Segmented className="seg-range" value={curve} onChange={setCurve}
@@ -2768,6 +2773,14 @@ export function DayNoteRow({ iso, note }) {
 // `routineIds` accepts `string | string[] | null` — `[r.id]` for one routine,
 // `effectiveRoutineIds(...)` for today's planned session, `[]` / null for explicit freestyle.
 export function startFlow(routineIds) {
+  if (S().sbs?.enabled && [].concat(routineIds || []).some(id=>S().routines.find(r=>r.id===id)?.sbsWeeks)) {
+    const waiting = ui().openSheet(()=><div role="status"><h3>Coach is preparing your session</h3><p>The plan, recent results and reference sources are being checked.</p></div>,{kind:'center',locked:true})
+    prepareSbsSession(routineIds).then(()=>{waiting.close();startReadyFlow(routineIds)}).catch(e=>{waiting.close();toast(e.message)})
+    return
+  }
+  startReadyFlow(routineIds)
+}
+function startReadyFlow(routineIds) {
   // The weigh-in is a setting (Settings → During a workout, issue #137): off goes straight
   // into the session with no body weight on it, same as "Start without weighing in".
   if (S().weighIn === false) { beginWorkout(routineIds, null); return }
@@ -2784,6 +2797,7 @@ export function beginWorkout(routineIds, bw) {
       routineIds: rids,
       name: routines.length ? deriveSessionName(routines.map(r => r.name)) : t('Freestyle'),
       bw: bw || null, cur: 0, entries,
+      ...(st.sbs?.enabled && routines.some(r=>r.sbsWeeks) ? {sbs:{week:st.sbs.week,cycle:st.sbs.cycle}} : {}),
       // Snapshot the layout at start so the header ⋮ can change it for this session only —
       // changing the saved default (Settings → Workout view) mid-session leaves it alone.
       workoutView: st.workoutView || 'cards',
@@ -3405,6 +3419,7 @@ function doFinishWorkout() {
         if (mx > 0 && beatsWeight(e.id, mx, (s.exWeights[e.id] || {}).w || 0)) s.exWeights[e.id] = { w: mx, d: w.d }
       })
       s.workouts.push(w)
+      if (A.sbs) { w.sbs = A.sbs; completeSbs(s,w); s.routines.forEach(r=>{delete r.sbsPrepared}) }
     }
     s.active = null
     // A rotation pass this app manages starts its next pass the moment the last session lands

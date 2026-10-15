@@ -1,0 +1,8 @@
+import {test} from 'node:test'
+import assert from 'node:assert/strict'
+import {sbsRoutes,trainingContext} from '../coach/sbs-coach.js'
+function harness(user,body={}){let reply;return {routes:sbsRoutes({readSession:()=>user,readBody:async()=>body,json:(_r,status,value)=>{reply={status,value}}}),reply:()=>reply}}
+test('personal coach endpoints require an existing app session',async()=>{const h=harness(null);for(const route of Object.values(h.routes)){await route({},{});assert.equal(h.reply().status,401)}})
+test('training context excludes identity, credentials and unrelated profile fields',()=>{const c=trainingContext({secret:'do-not-send',password:'do-not-send',sbs:{week:4,maxes:{bench:100},goal:'strength'},workouts:[{id:'w',d:'2026-10-15',name:'Upper A',secret:'hidden',entries:[{id:'0025',sets:[{w:80,r:5,done:true,token:'hidden'}]}]}],customEx:[]});assert.equal(JSON.stringify(c).includes('hidden'),false);assert.equal(JSON.stringify(c).includes('do-not-send'),false);assert.equal(c.history[0].entries[0].sets[0].rir,undefined)})
+test('baseline is explicit when automatic coach is switched off',async()=>{const r={id:'a',name:'Upper A',ex:[],sbsWeeks:{4:[{id:'0025',sbsRows:[]}]}};const h=harness({id:'test'},{routineId:'a',state:{sbs:{enabled:true,autoCoach:false,week:4,maxes:{bench:100}},routines:[r]}});await h.routes['POST /api/sbs/prepare']({},{});assert.equal(h.reply().status,200);assert.equal(h.reply().value.mode,'baseline');assert.equal(h.reply().value.routine.ex[0].sbsRows.length,5)})
+test('invalid training context does not start a provider process',async()=>{const h=harness({id:'test'},{});await h.routes['POST /api/sbs/chat']({},{});assert.equal(h.reply().status,400)})

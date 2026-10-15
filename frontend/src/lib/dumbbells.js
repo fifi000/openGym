@@ -87,7 +87,7 @@ const cfgOfEntry = entry => ({ ...(entry?.target || {}), id: entry?.id })
 
 /** What one logged kilo of this entry is worth in volume: 2 for "each" on two bells, else 1. */
 export const volumeFactor = entry =>
-  (entryDbLoad(entry) === 'each' ? bellsIn(cfgOfEntry(entry)) : 1)
+  (entry?.target?.countDouble != null ? (entry.target.countDouble ? 2 : 1) : entryDbLoad(entry) === 'each' ? bellsIn(cfgOfEntry(entry)) : 1)
 
 /**
  * The factor that turns a weight meant as `from` into the same load meant as `to`. Only the two
