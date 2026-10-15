@@ -4,6 +4,7 @@ The existing application is the runnable skeleton. Each step ends with a user-vi
 
 - [x] 0. Polish the SBS Coach dashboard. Done when week/status, subscription usage, primary chat, and collapsible settings/history/memory form a clear responsive panel without losing existing controls.
   - Evidence: frontend production build passed; focused SBS Coach UI tests passed (2/2); SBS Coach API tests passed (5/5). The embedded chat displays the conversation and supplies up to eight bounded recent messages to follow-up requests.
+  - Deployment: `http://192.168.0.234:8082` serves the new web image `opengym-web:filip-sbs-d52d330`; API runs `opengym-api:filip-sbs-d52d330`. `/api/health` returned `{"ok":true,"users":1,"writable":true}`, page and JS returned HTTP 200, and the API source hash matches this commit. Data/config backup: `/srv/containers/opengym/backups/pre-d52d330-2026-10-15.tgz`; rollback images: `opengym-web:filip-sbs-0f42e17`, `opengym-api:filip-sbs-0f42e17`.
 - [ ] 1. Publish the confirmed Strive research comparison. Done when the report identifies new official inspirations, overlaps, source links, and decompilation limits.
 - [ ] 2. Faster set entry. Add copying from a comparable set/session and bulk field application with undo. Done when a workout interaction updates the intended compatible rows and undo restores every prior value.
 - [ ] 3. Routine exercise alternatives. Configure alternatives on a slot and choose one in a live workout. Done when saved routines retain the alternatives and the logged replacement reads its own exercise history.
