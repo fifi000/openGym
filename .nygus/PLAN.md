@@ -2,6 +2,7 @@
 
 The existing application is the runnable skeleton. Each step ends with a user-visible workflow and its stored or derived result.
 
+- [ ] 0. Polish the SBS Coach dashboard. Done when week/status, subscription usage, primary chat, and collapsible settings/history/memory form a clear responsive panel without losing existing controls.
 - [ ] 1. Publish the confirmed Strive research comparison. Done when the report identifies new official inspirations, overlaps, source links, and decompilation limits.
 - [ ] 2. Faster set entry. Add copying from a comparable set/session and bulk field application with undo. Done when a workout interaction updates the intended compatible rows and undo restores every prior value.
 - [ ] 3. Routine exercise alternatives. Configure alternatives on a slot and choose one in a live workout. Done when saved routines retain the alternatives and the logged replacement reads its own exercise history.

@@ -10,3 +10,4 @@
 | 2026-10-15 | alternatives | Retain exercise-specific history and load when a routine slot changes exercise | Loads and training maxes are not interchangeable between lifts | Copy the original exercise load |
 | 2026-10-15 | sharing | Keep plan links self-contained and user-initiated | The existing self-hosted privacy model should not require a new service | Store plans on a public server |
 | 2026-10-15 | deployment scope | Update only openGym API and web; do not alter homelab configuration or other services unless required for this deployment | The homelab checkout has unrelated uncommitted changes | Rewrite the homelab compose file |
+| 2026-10-15 | SBS Coach panel | Use a compact dashboard with week/status first, readable Codex usage, primary chat, and collapsible settings/history/memory | The panel needs clearer hierarchy while preserving all existing controls on phone and desktop | Put every setting in one dense view or make chat the only focus |
