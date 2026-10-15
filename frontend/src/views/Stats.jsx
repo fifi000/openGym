@@ -417,6 +417,7 @@ export default function Stats() {
     return () => window.cancelAnimationFrame(frame)
   }, [])
   const [exId, setExId] = useState(null)
+  const [compareId, setCompareId] = useState('')
   const [exMetric, setExMetric] = useState('top')
   // Exercise progress over a date range (issue #511), All by default. Only the chart follows it:
   // "Best:" and the recent sessions under it stay all-time.
@@ -530,6 +531,16 @@ export default function Stats() {
     entriesForExercise(w, curEx).some(en => bestWeightForEntry(en) > 0))
   const metric = s => curCardio ? toSpeed(s.speed || 0, speedUnit) : curTimed ? (s.sec || 0) : (s.w || 0)
   const exUnit = curCardio ? speedLabel(speedUnit) : curTimed ? 's' : repsOnly ? t('reps') : S.unit
+  const compareMode = compareId ? (() => {
+    for (let i = workouts.length - 1; i >= 0; i--) {
+      const data = metricDataOf(workouts[i], compareId)
+      if (data.mode) return data.mode
+    }
+    return null
+  })() : null
+  const compareRepsOnly = compareId && compareMode === 'reps' && !workouts.some(w => entriesForExercise(w, compareId).some(en => bestWeightForEntry(en) > 0))
+  const compareCompatible = !!compareId && compareId !== curEx && compareMode === curMode && compareRepsOnly === repsOnly
+    && (curMode !== 'reps' || isAssisted(curEx) === isAssisted(compareId))
   let exPts = [], exList = [], exBest = 0
   if (curEx) {
     workouts.forEach(w => {
@@ -551,6 +562,14 @@ export default function Stats() {
     })
     exList = exPts.slice(-5).reverse()
   }
+  const comparePts = compareCompatible ? workouts.flatMap(w => {
+    const data = metricDataOf(w, compareId)
+    if (data.mode !== curMode) return []
+    const y = curMode === 'reps'
+      ? (repsOnly ? Math.max(0, ...data.rows.map(completedRepsOf)) : data.best)
+      : Math.max(0, ...data.rows.map(s => curCardio ? toSpeed(s.speed || 0, speedUnit) : curTimed ? (s.sec || 0) : (s.w || 0)))
+    return y > 0 ? [{ t: w.start, y, d: w.d }] : []
+  }).filter(p => p.t >= exFrom) : []
   // Estimated 1RM (issue #18) — only reps-mode training produces one, so cardio and timed
   // work simply have no points and the toggle stays hidden.
   // Both memoised on the same inputs, and it has to start at e1rmSeries: LineChart clears its
@@ -705,12 +724,19 @@ export default function Stats() {
                 emptyLabel: t('No match'),
                 match: (option, query) => matchExercise(matcherOf(option.value), query),
               }} />
+            <SelectRow title={t('Compare with')} sheetTitle={t('Compare exercises')} value={compareId} onChange={setCompareId} stackedValue
+              options={[{ value: '', label: t('Off') }, ...exHist.filter(id => id !== curEx).map(id => ({ value: id, label: nameOf(id) + (exCurrent[id].mx ? ' · ' + fmtNum(exCurrent[id].mx) + ' ' + exCurrent[id].unit : '') }))]}
+              search={{ placeholder: t('Search…'), label: t('Search…'), emptyLabel: t('No match'), match: (option, query) => matchExercise(matcherOf(option.value), query) }} />
           </div>
           {exOpts.length > 1 && <Segmented className="seg-range" value={onMax ? 'max' : onEff ? 'effort' : onE1 ? 'e1rm' : onSets ? 'sets' : 'top'} onChange={setExMetric} options={exOpts} />}
           <Segmented className="seg-range" value={exRange} onChange={setExRange} options={rangeOptions()} />
           <div className="chart">
             {rangeTooShort
               ? <div className="empty small">{t('Fewer than two workouts in this period. Pick a longer one.')}</div>
+              : compareId && !onSets && !onMax && !onEff && !onE1
+              ? compareCompatible
+                ? <LineChart points={[...chartPts, ...comparePts].sort((a, b) => a.t - b.t)} series={[{ points: chartPts, color: 'var(--blue)' }, { points: comparePts, color: 'var(--orange)' }]} h={150} unit={exUnit} />
+                : <div className="empty small">{t('These exercises use different progress metrics and can’t be compared.')}</div>
               : onSets
               ? <LineChart points={perSetChart.anchors} series={perSetChart.series} h={150} unit={perSet.metric === 'reps' ? t('reps') : S.unit} />
               : onMax
@@ -719,6 +745,9 @@ export default function Stats() {
               ? <LineChart points={effPts} h={150} unit={hd} color="var(--yellow)" invert={kind === 'rir'} />
               : <LineChart points={chartPts} h={150} unit={exUnit} color="var(--blue)" />}
           </div>
+          {compareCompatible && <div className="row small" style={{ gap: 14, flexWrap: 'wrap', marginTop: 6 }}>
+            {[{ id: curEx, color: 'var(--blue)' }, { id: compareId, color: 'var(--orange)' }].map(x => <span key={x.id} className="row" style={{ gap: 5 }}><span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 4, background: x.color }} />{nameOf(x.id)}</span>)}
+          </div>}
           {onSets && !rangeTooShort && <div className="row small" style={{ gap: 12, flexWrap: 'wrap', marginTop: 6 }}>
             {perSetChart.ns.map(n => <span key={n} className="row" style={{ gap: 5, alignItems: 'center' }}>
               <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 4, background: SET_COLORS[n - 1] }} />{t('Set {0}', n)}
